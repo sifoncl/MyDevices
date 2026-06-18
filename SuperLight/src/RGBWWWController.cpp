@@ -1,4 +1,5 @@
 #include "RGBWWWController.h"
+#include <ArduinoJson.h>
 
 void RGBWWWController::init()
 {
@@ -37,10 +38,21 @@ int kelvinToMireds(int kelvin)
 }
 
 /**
+ * Вспомогательная функция для конвертации mireds в Кельвины
+ * Кельвины = 1,000,000 / Mireds
+ */
+int miredsToKelvin(int mireds)
+{
+    if (mireds <= 0)
+        return 6500; // Защита от деления на ноль
+    return 1000000 / mireds;
+}
+
+/**
  * Версия с учетом нелинейности восприятия цвета (использует гамма-коррекцию)
  * Принимает цветовую температуру в Кельвинах (рекомендуемый диапазон 2200K-6500K)
  */
-void calculateWhiteChannelsGamma(int brightness, int kelvin, uint8_t &warm_white, uint8_t &cold_white, uint16_t m_min_temp, uint16_t m_max_temp, float gamma = 2.2)
+void calculateWhiteChannelsGamma(int brightness, int kelvin, uint8_t &warm_white, uint8_t &cold_white, u_int16_t m_min_temp, u_int16_t m_max_temp, float gamma = 2.2)
 {
     // Ограничиваем входные значения
     brightness = constrain(brightness, 0, 255);
@@ -78,38 +90,34 @@ void calculateWhiteChannelsGamma(int brightness, int kelvin, uint8_t &warm_white
     cold_white = constrain(cold_white, 0, 255);
 }
 
-int miredsToKelvin(int mireds);
-
 /**
  * Версия с учетом нелинейности восприятия цвета (использует гамма-коррекцию)
  * Принимает цветовую температуру в mireds (микрообратных кельвинах)
  * Рекомендуемый диапазон: 153 mireds (6500K) - 454 mireds (2200K)
  */
-void calculateWhiteChannelsMireds(int brightness, int mireds, uint8_t &warm_white, uint8_t &cold_white,
-                                  uint16_t m_min_temp = 153, uint16_t m_max_temp = 454, float gamma = 2.2)
+void calculateWhiteChannelsMireds(int brightness, int mireds, uint8_t &warm_white, uint8_t &cold_white, 
+                                  u_int16_t m_min_temp = 153, u_int16_t m_max_temp = 454, float gamma = 2.2)
 {
     // Ограничиваем mireds в допустимом диапазоне
-    if (mireds < m_min_temp)
-        mireds = m_min_temp;
-    if (mireds > m_max_temp)
-        mireds = m_max_temp;
-
+    if (mireds < m_min_temp) mireds = m_min_temp;
+    if (mireds > m_max_temp) mireds = m_max_temp;
+    
     // Нормализуем температуру в диапазоне 0-1 (0 - холодный, 1 - теплый)
     float temp_normalized = (float)(mireds - m_min_temp) / (m_max_temp - m_min_temp);
-
+    
     // Линейные значения для каналов
-    float warm_linear = temp_normalized;        // Теплый белый: от 0 до 1
-    float cold_linear = 1.0f - temp_normalized; // Холодный белый: от 1 до 0
-
+    float warm_linear = temp_normalized;          // Теплый белый: от 0 до 1
+    float cold_linear = 1.0f - temp_normalized;   // Холодный белый: от 1 до 0
+    
     // Применяем гамма-коррекцию
     float warm_gamma = pow(warm_linear, 1.0f / gamma);
     float cold_gamma = pow(cold_linear, 1.0f / gamma);
-
+    
     // Масштабируем с учетом яркости
     float bright_scale = (float)brightness / 255.0f;
     float warm_scaled = warm_gamma * bright_scale;
     float cold_scaled = cold_gamma * bright_scale;
-
+    
     // // Нормализуем, чтобы сумма каналов не превышала brightness
     // // (это предотвращает перенасыщение при смешивании)
     // float sum = warm_scaled + cold_scaled;
@@ -117,31 +125,24 @@ void calculateWhiteChannelsMireds(int brightness, int mireds, uint8_t &warm_whit
     //     warm_scaled /= sum;
     //     cold_scaled /= sum;
     // }
-
+    
     // Преобразуем в значения ШИМ 0-255
     warm_white = (uint8_t)(warm_scaled * 255.0f);
     cold_white = (uint8_t)(cold_scaled * 255.0f);
 }
 
-/**
- * Вспомогательная функция для конвертации mireds в Кельвины
- * Кельвины = 1,000,000 / Mireds
- */
-int miredsToKelvin(int mireds)
-{
-    if (mireds <= 0)
-        return 6500; // Защита от деления на ноль
-    return 1000000 / mireds;
-}
-
 // Обновление RGB каналов
 void RGBWWWController::updateLight()
 {
+    Serial.println("Обновление состояния ");
     // Управляем светодиодами в зависимости от состояния
     if (m_is_on)
     {
+        Serial.println("Лента включена ");
         if (m_is_ww_state)
         {
+            Serial.println("Режим WWCW");
+
             if (m_is_mireds)
             {
                 calculateWhiteChannelsMireds(m_brightness, m_color_temp, m_ww, m_cw, m_min_temp, m_max_temp);
@@ -151,6 +152,13 @@ void RGBWWWController::updateLight()
                 calculateWhiteChannelsGamma(m_brightness, m_color_temp, m_ww, m_cw, m_min_temp, m_max_temp);
             }
 
+            Serial.print("m_brightness: ");
+            Serial.println(m_brightness);
+
+            Serial.print("cold_white: ");
+            Serial.println(m_cw);
+            Serial.print("warm_white: ");
+            Serial.println(m_ww);
             analogWrite(m_pinR, 0);
             analogWrite(m_pinG, 0);
             analogWrite(m_pinB, 0);
@@ -159,6 +167,18 @@ void RGBWWWController::updateLight()
         }
         else
         {
+            Serial.println("Режим RGB");
+
+            Serial.println("m_brightness: ");
+            Serial.print(m_brightness);
+
+            Serial.print("r: ");
+            Serial.println(m_r);
+            Serial.print("g: ");
+            Serial.print(m_g);
+            Serial.print("b: ");
+            Serial.println(m_b);
+
             // RGB режим
             analogWrite(m_pinR, m_r * m_brightness / 255);
             analogWrite(m_pinG, m_g * m_brightness / 255);
@@ -169,6 +189,7 @@ void RGBWWWController::updateLight()
     }
     else
     {
+        Serial.println("Лента выключена");
         // Все выключено
         analogWrite(m_pinR, 0);
         analogWrite(m_pinG, 0);
@@ -176,8 +197,6 @@ void RGBWWWController::updateLight()
         analogWrite(m_pinWW, 0);
         analogWrite(m_pinCW, 0);
     }
-
-    m_revision++;
 }
 
 // Установка всех компонентов
@@ -264,7 +283,7 @@ void RGBWWWController::setRGBmode()
     m_is_ww_state = false;
 }
 
-void RGBWWWController::setTempParams(uint16_t max_temp, uint16_t min_temp, bool isMireds)
+void RGBWWWController::setTempParams(uint16_t max_temp, u_int16_t min_temp, boolean isMireds)
 {
     m_max_temp = max_temp;
     m_min_temp = min_temp;

@@ -22,14 +22,15 @@ private:
     uint8_t m_pinCW;
     uint8_t m_pinWW;
 
-    int m_color_temp;
+    uint16_t m_color_temp = 320;
 
-    boolean m_is_ww_state;
-    boolean m_is_on;
+    bool m_is_ww_state = true;
+    bool m_is_on = false;
 
-    uint16_t m_max_temp;
-    u_int16_t m_min_temp;
-    boolean m_is_mireds;
+    uint16_t m_max_temp = 454;
+    uint16_t m_min_temp = 153;
+    bool m_is_mireds = true;
+    uint32_t m_revision = 0;
 
     /**
      * Инициализация пинов
@@ -117,6 +118,9 @@ public:
     uint8_t getWhite() const { return m_cw; }
     uint8_t getWarmWhite() const { return m_ww; }
     uint8_t getBrightness() const { return m_brightness; }
+    uint16_t getColorTemperature() const { return m_color_temp; }
+    bool isWhiteMode() const { return m_is_ww_state; }
+    uint32_t revision() const { return m_revision; }
 
     /**
      * Выключить все светодиоды
@@ -142,7 +146,7 @@ public:
 
     void setRGBandChageMode(uint8_t r, uint8_t g, uint8_t b);
 
-    void setTempParams(uint16_t max_temp, u_int16_t min_temp, boolean isMireds);
+    void setTempParams(uint16_t max_temp, uint16_t min_temp, bool isMireds);
 
     ~RGBWWWController();
 };
