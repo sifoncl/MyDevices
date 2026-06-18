@@ -1,0 +1,97 @@
+#ifndef APP_CONFIG_H
+#define APP_CONFIG_H
+
+#include <Arduino.h>
+
+#if __has_include("Secrets.h")
+#include "Secrets.h"
+#endif
+
+#ifndef WIFI_SSID
+#define WIFI_SSID "CHANGE_ME"
+#endif
+#ifndef WIFI_PASSWORD
+#define WIFI_PASSWORD "CHANGE_ME"
+#endif
+#ifndef WIFI_SETUP_AP_SSID
+#define WIFI_SETUP_AP_SSID "DoorAndGates-Setup"
+#endif
+#ifndef WIFI_SETUP_AP_PASSWORD
+#define WIFI_SETUP_AP_PASSWORD "CHANGE_ME"
+#endif
+#ifndef WIFI_HOSTNAME
+#define WIFI_HOSTNAME "door-and-gates"
+#endif
+
+#ifndef MQTT_SERVER
+#define MQTT_SERVER "192.168.1.100"
+#endif
+#ifndef MQTT_PORT
+#define MQTT_PORT 1883
+#endif
+#ifndef MQTT_USER
+#define MQTT_USER "CHANGE_ME"
+#endif
+#ifndef MQTT_PASSWORD
+#define MQTT_PASSWORD "CHANGE_ME"
+#endif
+
+#define DEVICE_NAME "Door and Gates Controller"
+#define DEVICE_ID "door_gates_controller"
+#define SOFTWARE_VERSION "2.0.0"
+
+#define SERIAL_BAUD 115200
+#define I2C_SDA_PIN 21
+#define I2C_SCL_PIN 22
+
+#define SHT31_ADDRESS 0x44
+#define OLED_ADDRESS 0x3C
+
+// Leave all bytes at 0 to accept a sensor by its role field.
+// After reading the sensor MAC addresses, fill them here for strict validation.
+#define UPPER_SENSOR_MAC {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+#define LOWER_SENSOR_MAC {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+#define REMOTE_SENSOR_TIMEOUT_MS 8000UL
+
+#define GATE_OPEN_RELAY_PIN 15
+#define GATE_CLOSE_RELAY_PIN 18
+#define WICKET_RELAY_PIN 2
+#define LIGHT_RELAY_PIN 19
+
+#define WICKET_REED_PIN 33
+
+#define RADIO_GATE_OPEN_BUTTON_PIN 17
+#define RADIO_GATE_CLOSE_BUTTON_PIN 5
+#define RADIO_WICKET_BUTTON_PIN 4
+#define RADIO_LIGHT_BUTTON_PIN 16
+
+#define RELAY_ACTIVE_LEVEL LOW
+#define WICKET_REED_OPEN_LEVEL HIGH
+#define RADIO_BUTTON_ACTIVE_LEVEL HIGH
+#define RADIO_BUTTON_INPUT_MODE INPUT_PULLDOWN
+
+#define GATE_RELAY_SWITCH_GUARD_MS 150UL
+#define WICKET_PULSE_MS 700UL
+#define BUTTON_DEBOUNCE_MS 60UL
+#define RADIO_BUTTON_DEBOUNCE_MS 80UL
+
+#define MAGNET_SETTLE_TIME_MS 1200UL
+#define MAGNET_MOTION_THRESHOLD_UT 1.5f
+#define MAGNET_DIRECTION_MIN_CHANGE_UT 12.0f
+#define DEFAULT_UPPER_SENSOR_SENSITIVITY 80.0f
+#define DEFAULT_LOWER_SENSOR_SENSITIVITY 80.0f
+
+#define SHT31_READ_INTERVAL_MS 5000UL
+#define HA_PUBLISH_INTERVAL_MS 2000UL
+#define WIFI_CONNECT_TIMEOUT_MS 10000UL
+#define WIFI_RECONNECT_INTERVAL_MS 10000UL
+#define DISPLAY_RENDER_INTERVAL_MS 700UL
+#define IP_SCREEN_MS 8000UL
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define DISPLAY_MIN_BRIGHTNESS 0
+#define DISPLAY_MAX_BRIGHTNESS 255
+#define DISPLAY_BRIGHTNESS 255
+
+#endif

@@ -1,0 +1,34 @@
+#ifndef SENSOR_CONFIG_H
+#define SENSOR_CONFIG_H
+
+// Set the main controller STA MAC here. If left at zero, broadcast is used.
+#define CONTROLLER_MAC {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+
+// The main controller keeps this AP enabled so sensors can discover its channel.
+#define CONTROLLER_LINK_AP_SSID "DoorAndGates-Setup"
+#define FALLBACK_ESPNOW_CHANNEL 1
+
+#define SENSOR_SAMPLE_INTERVAL_MS 25UL
+#define TELEMETRY_INTERVAL_MS 50UL
+#define CHANNEL_RESCAN_FAILURE_COUNT 80
+#define CHANNEL_RESCAN_COOLDOWN_MS 30000UL
+
+#define DIRECTION_FILTER_ALPHA 0.25f
+#define DIRECTION_VELOCITY_ALPHA 0.35f
+#define DIRECTION_WINDOW_SAMPLES 8
+#define DIRECTION_START_THRESHOLD_UT 5.0f
+#define DIRECTION_CONTINUE_THRESHOLD_UT 1.5f
+#define DIRECTION_VELOCITY_THRESHOLD_UT 0.35f
+#define DIRECTION_CONFIRM_SAMPLES 3
+#define DIRECTION_SETTLE_TIME_MS 500UL
+
+#define MLX_I2C_ADDRESS 0x0C
+#define MLX_I2C_SDA_PIN 8
+#define MLX_I2C_SCL_PIN 9
+
+#define MLX_SPI_SCK_PIN 12
+#define MLX_SPI_MISO_PIN 13
+#define MLX_SPI_MOSI_PIN 11
+#define MLX_SPI_CS_PIN 10
+
+#endif
