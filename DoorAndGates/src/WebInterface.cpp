@@ -102,14 +102,17 @@ const char CONTROL_PAGE[] PROGMEM = R"HTML(
       </div>
     </section>
     <section class="card wide">
-      <h2>Wi-Fi</h2>
+      <h2>Настройка сети</h2>
       <div class="row"><span>Режим</span><span id="networkMode" class="value">...</span></div>
       <div class="row"><span>Текущая сеть</span><span id="currentSsid" class="value">...</span></div>
       <div class="row"><span>IP-адрес</span><span id="networkIp" class="value">...</span></div>
+      <div class="row"><span>Шлюз</span><span id="networkGateway" class="value">...</span></div>
+      <div class="row"><span>DNS</span><span id="networkDns" class="value">...</span></div>
+      <div class="row"><span>Сигнал</span><span id="networkRssi" class="value">...</span></div>
       <div class="wifi-fields">
         <div class="field">
           <label for="wifiNetworks">Доступные сети</label>
-          <select id="wifiNetworks" onchange="wifiSsid.value=this.value">
+          <select id="wifiNetworks">
             <option value="">Нажмите «Сканировать»</option>
           </select>
         </div>
@@ -118,15 +121,28 @@ const char CONTROL_PAGE[] PROGMEM = R"HTML(
           <input id="wifiSsid" autocomplete="off">
         </div>
         <div class="field">
-          <label for="wifiPassword">Пароль</label>
+          <label for="wifiPassword">Пароль (пусто = оставить текущий)</label>
           <input id="wifiPassword" type="password" autocomplete="new-password">
         </div>
       </div>
+      <div class="row">
+        <span>Получать адрес автоматически (DHCP)</span>
+        <input id="wifiDhcp" type="checkbox" checked>
+      </div>
+      <div id="wifiStaticFields" class="wifi-fields">
+        <div class="field"><label for="wifiStaticIp">Статический IP</label><input id="wifiStaticIp" placeholder="192.168.1.50"></div>
+        <div class="field"><label for="wifiGateway">Шлюз</label><input id="wifiGateway" placeholder="192.168.1.1"></div>
+        <div class="field"><label for="wifiSubnet">Маска</label><input id="wifiSubnet" placeholder="255.255.255.0"></div>
+        <div class="field"><label for="wifiDns1">DNS 1</label><input id="wifiDns1" placeholder="192.168.1.1"></div>
+        <div class="field"><label for="wifiDns2">DNS 2</label><input id="wifiDns2" placeholder="1.1.1.1"></div>
+      </div>
       <div class="buttons">
         <button id="scanWifiButton" onclick="scanWifi()">Сканировать</button>
-        <button onclick="saveWifi()">Сохранить Wi-Fi</button>
+        <button onclick="saveWifi()">Сохранить и подключиться</button>
+        <button class="warn" onclick="resetWifi()">Заводские настройки сети</button>
       </div>
       <div id="wifiMessage" class="muted"></div>
+      <p class="muted">Точка настройки работает постоянно. При потере домашней сети подключитесь к ней и откройте 192.168.4.1.</p>
     </section>
     <section class="card wide">
       <h2>MQTT и Home Assistant</h2>
@@ -165,15 +181,20 @@ const char CONTROL_PAGE[] PROGMEM = R"HTML(
     const gateText={open:'открыты',closed:'закрыты',opening:'открываются',closing:'закрываются',stopped:'стоп',unknown:'неизвестно'};
     const dirText={up:'вверх',down:'вниз',none:'нет'};
     let editing=false;
+    let wifiEditing=false;
+    let wifiLoaded=false;
     let mqttEditing=false;
     let mqttLoaded=false;
     let displayEditing=false;
     let displayLoaded=false;
     document.addEventListener('input',e=>{
       if(e.target.id.startsWith('upper')||e.target.id.startsWith('lower'))editing=true;
+      if(e.target.id.startsWith('wifi'))wifiEditing=true;
       if(e.target.id.startsWith('mqtt'))mqttEditing=true;
       if(e.target.id.startsWith('displayBrightness'))displayEditing=true
     });
+    wifiNetworks.addEventListener('change',()=>{if(wifiNetworks.value){wifiSsid.value=wifiNetworks.value;wifiEditing=true}});
+    wifiDhcp.addEventListener('change',()=>{wifiEditing=true;toggleWifiStatic()});
     async function post(path,body=''){await fetch(path,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});await refresh()}
     async function saveSettings(){
       const p=new URLSearchParams({
@@ -199,6 +220,25 @@ const char CONTROL_PAGE[] PROGMEM = R"HTML(
         document.getElementById(prefix+'Axis').value=s.axis;
         document.getElementById(prefix+'Invert').checked=s.inverted;
       }
+    }
+    function ipOrBlank(value){return value&&value!=='0.0.0.0'?value:''}
+    function toggleWifiStatic(){
+      const disabled=wifiDhcp.checked;
+      ['wifiStaticIp','wifiGateway','wifiSubnet','wifiDns1','wifiDns2'].forEach(id=>document.getElementById(id).disabled=disabled)
+    }
+    function loadWifi(n){
+      if(wifiEditing||wifiLoaded)return;
+      const cfg=n.config||{};
+      wifiLoaded=true;
+      wifiSsid.value=n.configuredSsid||'';
+      wifiPassword.value='';
+      wifiDhcp.checked=!n.static;
+      wifiStaticIp.value=ipOrBlank(cfg.ip);
+      wifiGateway.value=ipOrBlank(cfg.gateway);
+      wifiSubnet.value=ipOrBlank(cfg.subnet);
+      wifiDns1.value=ipOrBlank(cfg.dns1);
+      wifiDns2.value=ipOrBlank(cfg.dns2);
+      toggleWifiStatic()
     }
     function renderNetworks(networks){
       const selected=wifiSsid.value;
@@ -234,14 +274,36 @@ const char CONTROL_PAGE[] PROGMEM = R"HTML(
     }
     async function saveWifi(){
       if(!wifiSsid.value){wifiMessage.textContent='Укажите название сети';return}
-      const p=new URLSearchParams({ssid:wifiSsid.value,password:wifiPassword.value});
+      if(!wifiDhcp.checked&&(!wifiStaticIp.value||!wifiGateway.value||!wifiSubnet.value)){
+        wifiMessage.textContent='Для статического адреса заполните IP, шлюз и маску';return
+      }
+      const p=new URLSearchParams({
+        ssid:wifiSsid.value,password:wifiPassword.value,
+        mode:wifiDhcp.checked?'dhcp':'static',
+        ip:wifiStaticIp.value,gateway:wifiGateway.value,subnet:wifiSubnet.value,
+        dns1:wifiDns1.value,dns2:wifiDns2.value
+      });
       wifiMessage.textContent='Сохранение и подключение...';
       try{
         const r=await fetch('/api/wifi/save',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:p});
-        wifiMessage.textContent=r.ok?'Данные сохранены, устройство подключается':'Ошибка сохранения'
+        const result=await r.json();
+        if(r.ok){
+          wifiEditing=false;wifiLoaded=false;wifiPassword.value='';
+          wifiMessage.textContent='Настройки сохранены. Проверьте новый IP через несколько секунд.';
+          setTimeout(refresh,1200)
+        }else{
+          wifiMessage.textContent='Ошибка: '+(result.error||'неизвестная')
+        }
       }catch(e){
         wifiMessage.textContent='Соединение прервано. Проверьте новый IP или 192.168.4.1'
       }
+    }
+    async function resetWifi(){
+      if(!confirm('Вернуть сетевые настройки из AppConfig.h?'))return;
+      await fetch('/api/wifi/reset',{method:'POST'});
+      wifiEditing=false;wifiLoaded=false;wifiPassword.value='';
+      wifiMessage.textContent='Сетевые настройки сброшены';
+      setTimeout(refresh,1200)
     }
     function loadMqtt(m){
       if(mqttEditing||mqttLoaded)return;
@@ -332,11 +394,14 @@ const char CONTROL_PAGE[] PROGMEM = R"HTML(
       networkMode.textContent=d.network.connected?'Домашняя сеть':'Точка доступа';
       currentSsid.textContent=d.network.connected?d.network.ssid:d.network.setupSsid;
       networkIp.textContent=d.network.ip;
+      networkGateway.textContent=d.network.connected?d.network.gateway:'--';
+      networkDns.textContent=d.network.connected?(d.network.dns1+(d.network.dns2!=='0.0.0.0'?' / '+d.network.dns2:'')):'--';
+      networkRssi.textContent=d.network.connected?d.network.rssi+' dBm':'--';
       displayAvailable.textContent=d.display.available?'найден':'нет связи';
       sensor('upper',d.upperSensor);sensor('lower',d.lowerSensor);
-      loadMqtt(d.mqtt);loadDisplay(d.display)
+      loadWifi(d.network);loadMqtt(d.mqtt);loadDisplay(d.display)
     }
-    refresh();setInterval(refresh,750);
+    toggleWifiStatic();refresh();setInterval(refresh,750);
   </script>
 </body>
 </html>
@@ -389,6 +454,8 @@ void WebInterface::setupRoutes()
              { handleWifiScan(); });
   _server.on("/api/wifi/save", HTTP_POST, [this]()
              { handleWifiSave(); });
+  _server.on("/api/wifi/reset", HTTP_POST, [this]()
+             { handleWifiReset(); });
   _server.on("/api/mqtt/save", HTTP_POST, [this]()
              { handleMqttSave(); });
   _server.on("/api/mqtt/reset", HTTP_POST, [this]()
@@ -431,6 +498,9 @@ void WebInterface::setupRoutes()
                _magnets.rememberLowerBaseline();
                sendOk();
              });
+  _server.onNotFound([this]()
+                     { _server.sendHeader("Location", "/", true);
+                       _server.send(302, "text/plain", ""); });
 }
 
 void WebInterface::handleRoot()
@@ -446,13 +516,37 @@ void WebInterface::handleStatus()
   json += _network.connected() ? "true" : "false";
   json += ",\"provisioning\":";
   json += _network.provisioningMode() ? "true" : "false";
+  json += ",\"static\":";
+  json += _network.staticIpEnabled() ? "true" : "false";
   json += ",\"ip\":\"";
   json += _network.address().toString();
+  json += "\",\"gateway\":\"";
+  json += _network.gateway().toString();
+  json += "\",\"subnet\":\"";
+  json += _network.subnet().toString();
+  json += "\",\"dns1\":\"";
+  json += _network.dns1().toString();
+  json += "\",\"dns2\":\"";
+  json += _network.dns2().toString();
   json += "\",\"ssid\":\"";
   json += jsonEscape(_network.connectedSsid());
+  json += "\",\"configuredSsid\":\"";
+  json += jsonEscape(_network.configuredSsid());
   json += "\",\"setupSsid\":\"";
   json += jsonEscape(_network.setupApSsid());
-  json += "\"},\"mqtt\":{\"connected\":";
+  json += "\",\"rssi\":";
+  json += String(_network.rssi());
+  json += ",\"config\":{\"ip\":\"";
+  json += _network.configuredIp().toString();
+  json += "\",\"gateway\":\"";
+  json += _network.configuredGateway().toString();
+  json += "\",\"subnet\":\"";
+  json += _network.configuredSubnet().toString();
+  json += "\",\"dns1\":\"";
+  json += _network.configuredDns1().toString();
+  json += "\",\"dns2\":\"";
+  json += _network.configuredDns2().toString();
+  json += "\"}},\"mqtt\":{\"connected\":";
   json += _homeAssistant.connected() ? "true" : "false";
   json += ",\"server\":\"";
   json += jsonEscape(_mqttSettings.server());
@@ -561,13 +655,61 @@ void WebInterface::handleWifiScan()
 
 void WebInterface::handleWifiSave()
 {
-  if (!_server.hasArg("ssid") || _server.arg("ssid").length() == 0)
+  if (!_server.hasArg("ssid") || _server.arg("ssid").isEmpty())
   {
     _server.send(400, "application/json", "{\"ok\":false,\"error\":\"ssid_required\"}");
     return;
   }
 
-  _network.saveCredentials(_server.arg("ssid"), _server.arg("password"));
+  const bool useStatic = _server.arg("mode") == "static";
+  IPAddress localIp;
+  IPAddress gateway;
+  IPAddress subnet;
+  IPAddress dns1;
+  IPAddress dns2;
+
+  if (useStatic)
+  {
+    if (!parseIp(_server.arg("ip"), localIp) ||
+        !parseIp(_server.arg("gateway"), gateway) ||
+        !parseIp(_server.arg("subnet"), subnet) ||
+        localIp == IPAddress() ||
+        gateway == IPAddress() ||
+        subnet == IPAddress())
+    {
+      _server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid_static_ip\"}");
+      return;
+    }
+
+    if (!parseIp(_server.arg("dns1"), dns1))
+    {
+      dns1 = gateway;
+    }
+    parseIp(_server.arg("dns2"), dns2);
+  }
+
+  const bool saved = _network.saveSettings(
+      _server.arg("ssid"),
+      _server.arg("password"),
+      useStatic,
+      localIp,
+      gateway,
+      subnet,
+      dns1,
+      dns2);
+
+  if (!saved)
+  {
+    _server.send(500, "application/json", "{\"ok\":false,\"error\":\"save_failed\"}");
+    return;
+  }
+
+  sendOk();
+}
+
+void WebInterface::handleWifiReset()
+{
+  _network.restoreDefaults();
   sendOk();
 }
 
@@ -651,6 +793,16 @@ void WebInterface::handleDisplaySave()
 void WebInterface::sendOk()
 {
   _server.send(200, "application/json", "{\"ok\":true}");
+}
+
+bool WebInterface::parseIp(const String &text, IPAddress &address)
+{
+  if (text.isEmpty())
+  {
+    address = IPAddress();
+    return false;
+  }
+  return address.fromString(text);
 }
 
 void WebInterface::appendSensorJson(String &json,

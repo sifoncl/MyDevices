@@ -1,0 +1,36 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "BanyaTermometr",
+			"path": "BanyaTermometr"
+		},
+		{
+			"name": "BanyaTermometrScreen",
+			"path": "BanyaTermometrScreen"
+		},
+		{
+			"name": "DoorAndGates",
+			"path": "DoorAndGates"
+		},
+		{
+			"name": "DoorAndGates Lower Sensor",
+			"path": "DoorAndGates Lower Sensor"
+		},
+		{
+			"name": "DoorAndGates Upper Sensor",
+			"path": "DoorAndGates Upper Sensor"
+		},
+		{
+			"name": "Kid Room tem",
+			"path": "Kid Room tem"
+		},
+		{
+			"name": "PcLamp",
+			"path": "PcLamp"
+		}
+	],
+	"settings": {}
+}

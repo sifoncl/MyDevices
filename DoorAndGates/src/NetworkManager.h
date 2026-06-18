@@ -20,10 +20,31 @@ public:
   void loop();
 
   void saveCredentials(const String &ssid, const String &password);
+  bool saveSettings(const String &ssid,
+                    const String &password,
+                    bool useStaticIp,
+                    const IPAddress &localIp,
+                    const IPAddress &gateway,
+                    const IPAddress &subnet,
+                    const IPAddress &dns1,
+                    const IPAddress &dns2);
+  void restoreDefaults();
   bool provisioningMode() const;
   bool connected() const;
+  bool staticIpEnabled() const;
   IPAddress address() const;
+  IPAddress gateway() const;
+  IPAddress subnet() const;
+  IPAddress dns1() const;
+  IPAddress dns2() const;
+  IPAddress configuredIp() const;
+  IPAddress configuredGateway() const;
+  IPAddress configuredSubnet() const;
+  IPAddress configuredDns1() const;
+  IPAddress configuredDns2() const;
   String connectedSsid() const;
+  String configuredSsid() const;
+  int32_t rssi() const;
   const char *setupApSsid() const;
 
 private:
@@ -38,18 +59,27 @@ private:
   Preferences _preferences;
   String _ssid;
   String _password;
-  String _pendingSsid;
-  String _pendingPassword;
-  bool _apActive = false;
-  bool _pendingConnect = false;
+  bool _useStaticIp = false;
+  IPAddress _localIp;
+  IPAddress _gateway;
+  IPAddress _subnet;
+  IPAddress _dns1;
+  IPAddress _dns2;
+
   bool _connectionAttemptActive = false;
+  bool _wasConnected = false;
+  bool _pendingReconnect = false;
   unsigned long _connectionAttemptAt = 0;
   unsigned long _lastReconnectAt = 0;
+  unsigned long _pendingReconnectAt = 0;
 
-  void loadCredentials();
+  void loadSettings();
   void startStationConnection();
-  void startProvisioningPortal();
-  void finishStationConnection();
+  void startSetupAccessPoint();
+  void applyIpConfiguration();
+  void logConnected();
+  static IPAddress readIp(Preferences &preferences, const char *key);
+  static void writeIp(Preferences &preferences, const char *key, const IPAddress &value);
 };
 
 #endif

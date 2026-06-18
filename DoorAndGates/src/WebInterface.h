@@ -44,11 +44,13 @@ private:
   void handleSettings();
   void handleWifiScan();
   void handleWifiSave();
+  void handleWifiReset();
   void handleMqttSave();
   void handleMqttReset();
   void handleDisplaySave();
   void sendOk();
 
+  static bool parseIp(const String &text, IPAddress &address);
   static void appendSensorJson(String &json,
                                const char *name,
                                const MagneticPresenceSensorState &state,
